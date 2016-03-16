@@ -1,0 +1,128 @@
+*******************
+ PROJECT OVERVIEW
+*******************
+
+Developer: Nguyen Dinh Nguyen
+Date of Completion: March 12, 2016
+
+The player client is the second part of the "TCP Server with Select" for the Computer Networking class	
+taught by Prof. Christopher GauthierDickey at the University of Denver.
+The first part is the project TCP GameServer
+
+The player client designed to play a simple game in which the playing space takes place on a 1.0 by 1.0 by 1.0 sized map. 	
+In this game, the players control robots that move around the field and have one ability, self-annihilate. 	
+This self-annihilation creates an explosion that destroys all robots within a given radius. 	
+For this project, real players are substituted with bots created specifically for the game described.
+The commands a bot can send to the server include:
+
+1. Updating the position of their robot: this is an x, y and z position    
+2. Self-annihilate: to enact the self-destruct routine
+3. Spawn: to create a new robot at a given position
+
+The server will send back the following to each player:
+
+1. A Join response message to the player when they first join to give them their ID
+2. An update that includes the player ID, position, and the score of each player. 
+3. A message when a player self-annihilates, including which players IDs were taken out of play.
+4. A message when a new robot has spawned, its location, and its ID.
+
+For the client, each message sent must have the following header fields:
+
+1. Message length (4 bytes)
+2. Version (1 byte)
+3. Type (1 byte) 
+
+The message length field is not a project requirement.
+It was added by the developer to solve the problem of uintended packet concatentation caused by TCP's Nagle algorithm.
+The type field specifies the type of message sent by the client:
+
+1. Player move: 
+Sent to the server to inform the server of the player's movement. Contains:
+
+x-position 	|	floating point value (4 bytes)
+y-position 	|	floating point value (4 bytes)
+z-position 	|	floating point value (4 bytes)
+
+Note that the message does not contain the ID of the player, since the server already keeps track of players by sockets.
+			
+2. Player self-annihilate:
+Sent to server to inform server that player has decided to self-annihilate.
+Besides the header, this message has no content. The message type in the header is enough to inform the server.
+Upon receiving this message, the server considers the player self-annihilated at its current position.
+This however implies that the server must keep track of players' positions.
+
+3. Player spawn message:
+Sent to server to inform server that the player has been spawned at a certain location. Contains:
+
+x-position	| 	floating point value (4 bytes)
+y-position 	|	floating point value (4 bytes)
+z-position 	|	floating point value (4 bytes)
+
+	
+	
+**********************
+ PROJECT REQUIREMENTS
+**********************
+
+1. The client socket must be non-blocking. This can be implemented using select() or multi-threading (select() is chosen)
+2. The client must process and send messages automatically
+3. The user must be able to input the server's port number and host name from the command line during set up
+
+A tutorial on basic TCP socket programming and the use of select() was provided by prof. GauthierDickey
+Anytime code samples from the tutorial were used to set up the TCP sockets, prof. GauthierDickey was credited in the comments.
+If there's any uncredited codes, it's the sole responsibility of the developer.
+No other design of implementation details were provided.
+			 
+
+**************
+ MAIN CLASSES
+**************
+
+There are 5 main classes:
+
+1. PlayerClient:
+The PlayerClient class sets up connection with the server, sends and receives messages through TCP sockets.
+It also keeps track of information about other players based on information received from the server.
+In this way, the PlayerClient "simulates" the game's environment in the client's machine.
+The PlayerClient is not responsible for implementing any game logic.
+The game logic and decisions are implemented by the bot class, which is hosted inside the player client.
+Thus, the bot is actually the player, and the PlayerClient is just the game environment.
+
+2. Bot:
+The bot class is a virtual class that defines the common behaviors of different types of bots.
+These includes basic functions for keeping track of and updating the bot's state (position, type, dead/alive, created?, score)
+The functions which decide when and where to move/spawn, and when to self-annihilate are left as templates.
+These templates are meant to be overriden by different bot types inheriting from the bot class.
+The bot class does not implement any direct connection to the server.
+Decisions made by the bot are first passed on to the PlayerClient class.
+The PlayerClient then translates the decisions into messages sent into the server.
+Vice versa, messages containing info about the game environment are first received and read by the PlayerClient.
+The processed information is then passed on to the bot for use in decision-making.
+
+3. DumbBot:
+An actual implementation of the bot class with a very simplistic AI.
+The dumbbot will simply move in random directions, and will immediately self-annihilate if another player is in range.
+
+4. PunisherBot:
+An actual implementation of the bot class which are designed to follow and kill a bot that has previously killed it.
+Once the killer bot has been punished, this bot reverts back to the dumb bot's behavior until it's killed by a new killer.
+
+5. BotFactory:
+A class responsible for creating the right types of bot based on user's input. 
+The use of the BotFactory class and the Bot virtual class is to implement the Object-oriented Factory design pattern.
+This pattern helps to separate the bot's logic and implementation from the PlayerClient's logic and implementation.
+This way, the PlayerClient has no knowledge of the internal logic of the bots.
+All the PlayerClient does is providing a platform for the bot to interact with other bots via the server.
+As a result, new types of bot can be added in the future without the need to change the PlayerClient.
+This can save a lot of development time, as the PlayerClient class is not trivial.
+
+
+*******************
+ COMPILATION & RUN
+*******************
+
+To compile the program, navigate to the project's folder.
+In the command line, type "make".
+
+To run the server, type "./client [host name] [port number] [bot type]" to the command line.
+For bot type, "10" indicates Dumb Bot, and "11" indicates Punisher Bot.
